@@ -5,7 +5,11 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using TShopApi.Filters;
+using TShopApi.Helpers;
 using TShopApi.Models;
+using TShopApi.Services;
+using TShopApi.Wrappers;
 
 namespace TShopApi.Controllers
 {
@@ -14,31 +18,54 @@ namespace TShopApi.Controllers
     public class CategoriesController : ControllerBase
     {
         private readonly TShopDBContext _context;
+        private readonly IUriService _uriService;
 
-        public CategoriesController(TShopDBContext context)
+        public CategoriesController(TShopDBContext context, IUriService uriService)
         {
             _context = context;
+            _uriService = uriService;
         }
 
         // GET: api/Categories
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Category>>> GetCategories()
+        public async Task<ActionResult<IEnumerable<Category>>> GetCategories([FromQuery] string filter, [FromQuery] PaginationFilter paginationFilter, [FromQuery] SortFilter sortFilter)
         {
-            return await _context.Categories.ToListAsync();
+            var route = Request.Path.Value;
+            var paginator = new PaginationFilter(paginationFilter.PageNumber, paginationFilter.PageSize);
+            var sorter = new SortFilter(sortFilter.SortColumn != null ? sortFilter.SortColumn : "code", sortFilter.SortOrder);
+
+            var filteredData = _context.Categories
+                .Where(c => !string.IsNullOrWhiteSpace(filter) ? (c.Code.Contains(filter) || c.Name.Contains(filter)) : true)
+                .AsQueryable()
+                .OrderByPropertyName(sorter.SortColumn, sorter.SortOrder == "asc");
+
+            var retrievedData = await filteredData
+                .Skip((paginator.PageNumber - 1) * paginator.PageSize)
+                .Take(paginator.PageSize)
+                .Include(c => c.Products)
+                .ToListAsync();
+
+            var totalRecords = await filteredData.CountAsync();
+            var pagedResponse = PaginationHelper.CreatePagedResponse<Category>(retrievedData, paginator, totalRecords, _uriService, route);
+
+            return Ok(pagedResponse);
         }
 
         // GET: api/Categories/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Category>> GetCategory(int id)
         {
-            var category = await _context.Categories.FindAsync(id);
+            var category = await _context.Categories
+                .Include(c => c.Products)
+                .Where(p => p.Id == id)
+                .FirstOrDefaultAsync();
 
             if (category == null)
             {
                 return NotFound();
             }
 
-            return category;
+            return Ok(new Response<Category>(category));
         }
 
         // PUT: api/Categories/5
@@ -80,7 +107,7 @@ namespace TShopApi.Controllers
             _context.Categories.Add(category);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetCategory", new { id = category.Id }, category);
+            return CreatedAtAction("GetCategory", new { id = category.Id }, new Response<Category>(category));
         }
 
         // DELETE: api/Categories/5

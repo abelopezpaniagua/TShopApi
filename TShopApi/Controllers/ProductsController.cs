@@ -5,7 +5,11 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using TShopApi.Filters;
+using TShopApi.Helpers;
 using TShopApi.Models;
+using TShopApi.Services;
+using TShopApi.Wrappers;
 
 namespace TShopApi.Controllers
 {
@@ -14,19 +18,38 @@ namespace TShopApi.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly TShopDBContext _context;
+        private readonly IUriService _uriService;
 
-        public ProductsController(TShopDBContext context)
+        public ProductsController(TShopDBContext context, IUriService uriService)
         {
             _context = context;
+            _uriService = uriService;
         }
 
         // GET: api/Products
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
+        public async Task<ActionResult<IEnumerable<Product>>> GetProducts([FromQuery] string filter, [FromQuery] PaginationFilter paginationFilter, [FromQuery] SortFilter sortFilter)
         {
-            return await _context.Products
+            var route = Request.Path.Value;
+            var paginator = new PaginationFilter(paginationFilter.PageNumber, paginationFilter.PageSize);
+            var sorter = new SortFilter(sortFilter.SortColumn == null ? "code" : sortFilter.SortColumn, sortFilter.SortOrder);
+
+            var filteredData = _context.Products
+                .Where(p => !string.IsNullOrEmpty(filter) ? (p.Code.Contains(filter) || p.Name.Contains(filter)) : true)
+                .AsQueryable()
+                .OrderByPropertyName(sorter.SortColumn, sorter.SortOrder == "asc");
+
+            var retrievedData = await filteredData
+                .Skip((paginator.PageNumber - 1) * paginator.PageSize)
+                .Take(paginator.PageSize)
                 .Include(p => p.Category)
                 .ToListAsync();
+            
+            var totalRecords = await filteredData.CountAsync();
+
+            var pagedResponse = PaginationHelper.CreatePagedResponse<Product>(retrievedData, paginator, totalRecords, _uriService, route);
+
+            return Ok(pagedResponse);
         }
 
         // GET: api/Products/5
@@ -43,7 +66,7 @@ namespace TShopApi.Controllers
                 return NotFound();
             }
 
-            return product;
+            return Ok(new Response<Product>(product));
         }
 
         // PUT: api/Products/5
@@ -85,7 +108,7 @@ namespace TShopApi.Controllers
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetProduct", new { id = product.Id }, product);
+            return CreatedAtAction("GetProduct", new { id = product.Id }, new Response<Product>(product));
         }
 
         // DELETE: api/Products/5
