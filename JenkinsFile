@@ -1,5 +1,12 @@
-stage ('Clean workspace') {
-  steps {
-    cleanWs()
+pipeline {
+  agent winagent
+  
+  stages {
+    stage ('Clean workspace') {
+      steps {
+        cleanWs()
+      }
+    }
   }
 }
+
