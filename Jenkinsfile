@@ -15,7 +15,7 @@ pipeline {
     }
     stage('Git Checkout') {
       steps {
-        git branch: 'master', credentialsId: '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', url: 'https://github.com/abelopezpaniagua/TShopApi.git'
+        git branch: 'master', credentialsId: 'a53803ef-81b3-4e31-b493-1d59ba7eb410', url: 'https://github.com/abelopezpaniagua/TShopApi.git'
       }
     }
     stage('Restore packages') {
