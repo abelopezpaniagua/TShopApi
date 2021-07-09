@@ -1,5 +1,5 @@
 pipeline {
-  agent any
+  agent { label 'winagent' }
   
   stages {
     stage ('Clean workspace') {
