@@ -20,7 +20,7 @@ pipeline {
     }
     stage('Restore packages') {
       steps {
-        bat "dotnet restore ${workspace}\\TShopApi\\TShopApi.sln"
+        bat "dotnet restore ${workspace}\\TShopApi.sln"
       }
     }
   }
