@@ -20,6 +20,9 @@ pipeline {
     }
     stage('Restore packages') {
       steps {
+        bat "dotnet clean ${workspace}\\TShopApi.sln --configuration Release && dotnet nuget locals all --clear" 
+      }
+      steps {
         bat "dotnet restore ${workspace}\\TShopApi.sln"
       }
     }
