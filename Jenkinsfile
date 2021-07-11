@@ -26,7 +26,7 @@ pipeline {
     }
     stage('Build') {
       steps {
-        bat "dotnet build --no-restore"
+        bat "dotnet build --no-restore --configuration Release"
       }
     }
   }
