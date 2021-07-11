@@ -10,7 +10,7 @@ pipeline {
     }
     stage('Git Checkout') {
       steps {
-        git branch: 'master', credentialsId: '', url: 'https://github.com/abelopezpaniagua/TShopApi.git'
+        git branch: 'master', url: 'https://github.com/abelopezpaniagua/TShopApi.git'
       }
     }
     stage('Restore packages') {
